@@ -1,4 +1,5 @@
-FROM node:18
+# Node.js 18 වෙනුවට Node.js 20 පාවිච්චි කරන්න
+FROM node:20
 
 # System dependencies install කිරීම
 RUN apt-get update && apt-get install -y \
