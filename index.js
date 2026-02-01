@@ -1,41 +1,54 @@
-const { default: makeWASocket, useMultiFileAuthState } = require('@whiskeysockets/baileys');
+const express = require('express');
+const { google } = require('googleapis');
 const ytDlp = require('yt-dlp-exec');
-const qrcode = require('qrcode-terminal');
+const app = express();
 
-async function startBot() {
-    const { state, saveCreds } = await useMultiFileAuthState('auth_info');
-    const sock = makeWASocket({ auth: state, printQRInTerminal: true });
+const PORT = process.env.PORT || 8000;
+const YT_API_KEY = 'AIzaSyCzRJTOldgh-T2qK-BTNUKHZWNDbs1Ia3c'; // Google Cloud API Key
 
-    sock.ev.on('creds.update', saveCreds);
+const youtube = google.youtube({ version: 'v3', auth: YT_API_KEY });
 
-    sock.ev.on('messages.upsert', async ({ messages }) => {
-        const msg = messages[0];
-        if (!msg.message || msg.key.fromMe) return;
+app.get('/', (req, res) => {
+    res.json({ status: 'YouTube Downloader API is Live' });
+});
 
-        const text = msg.message.conversation || msg.message.extendedTextMessage?.text;
-        const from = msg.key.remoteJid;
+// Endpoint: /ytdl?name=වීඩියෝවේ_නම
+app.get('/ytdl', async (req, res) => {
+    const query = req.query.name;
+    if (!query) return res.status(400).json({ error: 'කරුණාකර නම ලබා දෙන්න.' });
 
-        if (text && text.includes('youtube.com/watch') || text.includes('youtu.be/')) {
-            await sock.sendMessage(from, { text: '📥 වීඩියෝව බාගත වෙමින් පවතියි, කරුණාකර රැඳී සිටින්න (Speed: Max)...' });
+    try {
+        // 1. YouTube API හරහා වීඩියෝව සෙවීම
+        const search = await youtube.search.list({
+            part: 'snippet',
+            q: query,
+            maxResults: 1,
+            type: 'video'
+        });
 
-            try {
-                // yt-dlp හරහා වීඩියෝව බාගත කිරීම
-                const output = await ytDlp(text, {
-                    dumpSingleJson: true,
-                    noCheckCertificates: true,
-                    preferFreeFormats: true,
-                });
+        if (!search.data.items.length) return res.json({ success: false, message: 'හමු නොවීය' });
 
-                await sock.sendMessage(from, { 
-                    video: { url: output.url }, 
-                    caption: `✅ සාර්ථකයි: ${output.title}` 
-                });
-            } catch (e) {
-                await sock.sendMessage(from, { text: '❌ දෝෂයක් සිදු විය. නැවත උත්සාහ කරන්න.' });
-                console.log(e);
-            }
-        }
-    });
-}
+        const videoId = search.data.items[0].id.videoId;
+        const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
 
-startBot();
+        // 2. yt-dlp මගින් වීඩියෝවේ Direct Download Link එක ලබා ගැනීම
+        const info = await ytDlp(videoUrl, {
+            dumpSingleJson: true,
+            noCheckCertificates: true,
+            format: 'best[ext=mp4]/best', // WhatsApp වලට ගැළපෙන MP4
+        });
+
+        res.json({
+            success: true,
+            title: info.title,
+            thumbnail: info.thumbnail,
+            download_url: info.url, // බොට් එකට අවශ්‍ය Direct Link එක
+            videoId: videoId
+        });
+
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+app.listen(PORT, () => console.log(`API running on port ${PORT}`));
