@@ -1,14 +1,13 @@
 {
-  "name": "whatsapp-yt-downloader",
+  "name": "koyeb-yt-api",
   "version": "1.0.0",
-  "description": "Fast YouTube Downloader Bot",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
   },
   "dependencies": {
-    "@whiskeysockets/baileys": "latest",
-    "yt-dlp-exec": "latest",
-    "qrcode-terminal": "latest"
+    "express": "latest",
+    "googleapis": "latest",
+    "yt-dlp-exec": "latest"
   }
 }
