@@ -1,0 +1,12 @@
+FROM node:18-slim
+
+# Install yt-dlp and ffmpeg for high speed
+RUN apt-get update && apt-get install -y python3 python3-pip ffmpeg && \
+    pip3 install yt-dlp
+
+WORKDIR /app
+COPY package*.json ./
+RUN npm install
+COPY . .
+
+CMD ["npm", "start"]
